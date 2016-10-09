@@ -9,7 +9,7 @@ int myprintf(const char* format, ...) {
         if (k == 1) printf("\nArgument List:\n");
         va_list args;
         va_start(args, format);
-        for (int i = 0; i <= f_len; i++) {
+        for (size_t i = 0; i <= f_len; i++) {
             if (format[i] == '%') {
                 char fmt = format[i + 1];
                 i++;  // Don't print the format specifier
