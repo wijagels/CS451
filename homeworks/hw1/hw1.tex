@@ -1,0 +1,218 @@
+\documentclass[a4paper,11pt]{article}
+
+\usepackage[english]{babel}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage[colorinlistoftodos]{todonotes}
+\usepackage{enumitem}
+\usepackage{DejaVuSansMono}
+\usepackage{listings}
+\lstset{basicstyle=\footnotesize\ttfamily,breaklines=true}
+\lstset{frame=tb,language=C,numbers=left,showstringspaces=false}
+\renewcommand{\lstlistingname}{Code Block}
+
+\usepackage{geometry}
+\geometry{total={210mm,297mm},
+left=25mm, right=25mm,
+bindingoffset=0mm,
+top=20mm, bottom=20mm}
+
+\usepackage[
+  pdftitle={Homework Assignment 1},
+  pdfauthor={William Jagels},
+  colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue,bookmarks=true,
+bookmarksopenlevel=2]{hyperref}
+
+\usepackage{titlesec}
+\titlelabel{\thetitle.\quad}
+\renewcommand{\thesection}{\Roman{section}}
+
+\def\code#1{\texttt{#1}}
+
+\title{Homework Assignment 1}
+
+\author{William Jagels}
+
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{Q\&A}
+
+\subsection{}
+\begin{lstlisting}[caption=badcode.c]
+int main(int argc, char * argv[])
+{
+    char * type = NULL, * op1 = NULL, * op2 = NULL;
+    int a = 0, b = 0;
+    if (argc != 3 && argc != 4)
+    {
+        print_usage();
+        exit(0);
+    }
+    type = argv[1];
+    op1 = argv[2];
+    op2 = argv[3];
+    a = atoi(op1);
+    b = atoi(op2);
+    switch (type)
+    {
+        case "1":
+            printf("Multiplication result is %d\n", mymul(a, b));
+        case "2":
+            printf("Division result is %d\n", mydiv(a, b));
+        case "3":
+            myabs(a);
+            printf("Absolute value is %d\n", a);
+        case "4":
+            printf("Concatenation result is %s\n", myconcat(op1, op2));
+    }
+    return 0;
+}
+void print_usage()
+{
+    printf( "Usage: \"./a.out operation_type operand_1 [operand_2]\"\n"
+            "\t operation_type :\n"
+            "\t\t 1: multiply operand1 and operand2\n"
+            "\t\t 2: divide operand1 by operand2\n"
+            "\t\t 3: absolute value of operand1\n"
+            "\t\t 4: concatenate operand1 and operand2\n");
+}
+int mymul(int a, int b)
+{
+    return a * b;
+}
+int mydiv(int a, int b)
+{
+    return a / b;
+}
+void myabs(int a)
+{
+    a = -a;
+}
+char * myconcat(char * a, char * b)
+{
+    char * str = malloc(strlen(a) + strlen(b));
+    strcpy(str, a);
+    strcat(str, b);
+    return str;
+}
+\end{lstlisting}
+
+\textbf{Problems with the above}
+\begin{enumerate}
+  \item
+    All the functions are implicitly defined, which isn't all that safe.
+    Forward declarations should be used.
+  \item
+    At line 12, \code{arv[3]} may point past the end of the array.
+  \item
+    At line 15, the switch statement has no default, making it hard for the user to figure
+    out that they supplied an invalid type.
+  \item
+    The switch case also won't work because C only alows integers in a switch case.
+    This can be fixed by using \code{switch(atoi(type))} and removing the quotes around
+    each case number.
+  \item
+    The switch case also behave erratically without \code{break;} at the end of each case.
+    All operations after the selected operation will all execute without it.
+  \item
+    \code{myabs} does not have any effect as it doesn't return anything.
+    Also, absolute value of a is not always -a.
+    Replacing \code{myabs} with \code{abs} from \code{<stdlib.h>} is a good alternative.
+    This would require deleting line 22 and replacing \code{a} with \code{abs(a)} on line 23.
+  \item
+    \code{myconcat} allocates a block for the resultant string, but it is never freed
+    when called from \code{main}.
+  \item
+    \code{myconcat} doesn't allocate enough space at line 52, it should allocate
+    \code{strlen(a) + strlen(b) + 1} bytes because of the null terminator.
+\end{enumerate}
+
+\subsection{}
+This code could be useful if \code{dest} points to a memory-mapped output device.
+
+\subsection{}
+\begin{enumerate}[label = (\alph*)]
+  \item \code{int a, *b;}\\
+    \code{a} is a normal integer while \code{b} is a pointer to an integer
+  \item \code{double (fs[])(int);}\\
+    \code{fs} is an array of functions that take an \code{int} and return a \code{double}.
+    Sadly, this is not a valid type, because functions can't be stored in arrays.
+    A \code{*} before \code{fs} will make this a valid type.
+  \item \code{double *(*f)(double d);}\\
+    \code{f} is a pointer to a function that takes a \code{double} and returns a \code{double *}
+  \item \code{int *const p;}\\
+    \code{p} is a constant pointer to an integer.
+    The pointer address can't change, but the data it points to can be.
+  \item \code{int (*cmps[10])(const void *, const void *);}\\
+    \code{cmps} is an array of 10 pointers to functions that take two pointers of type void that point to constants and return \code{int}.
+\end{enumerate}
+
+\subsection{}
+\begin{enumerate}[label = (\alph*)]
+  \item\code{typedef double (*arg\_t[])(int);\\
+  typedef void *(*ret\_t)();\\
+  ret\_t f(arg\_t);}
+  \item\code{void *(*(*foo)(double (*[])(int)))();}
+\end{enumerate}
+
+\begin{lstlisting}[caption=Function Pointers,label=function pointers]
+#include <stdio.h>
+#include <stdlib.h>
+
+typedef double (*arg_t[])(int);
+typedef void *(*ret_t)();
+
+void *(*(*foo)(double (*[])(int)))();
+double bar(int k) { return 1.0 * k; }
+void *baz() { return malloc(10); }
+
+ret_t fin(arg_t a) {
+    printf("%f\n", a[0](6));
+    return &baz;
+}
+
+int main() {
+    foo = &fin;
+    double (*asdf[])(int) = {&bar};
+    free(foo(asdf)());
+}
+\end{lstlisting}
+
+\subsection{}
+\begin{enumerate}[label = (\alph*)]
+  \item
+    The compiler actually won't care because function declarations with empty arguments
+    semantically means that the function can take any number of arguments of any type.
+    This can be explicitly overridden by declaring \code{f} as \code{void f(void);}.
+  \item
+    This is true for the most part, with the exception of floating point numbers.
+    If x is NaN, then \code{x == x} will always be false.
+    Wonderfully enough, \code{x == NAN} doesn't even work if x is NaN.
+    \code{isnan(x)} is the only safe way of checking if x is NaN since \code{NAN != NAN}.
+  \item
+    In some cases, this is true.
+    The C standard only specifies a minimum size of 32 bits for \code{long}.
+    In the case of a 32 bit \code{long} and 32 bit \code{int} there will be overflow because
+    of the sign bit.
+    On my machine, a \code{long} is 64 bits wide, and does not cause any overflow.
+    A good way to guarantee safety is to use the \code{long long} specifier, which will always
+    be at least 64 bits wide.
+  \item
+    \code{malloc} is a fairly expensive call, so calling it a bunch of times isn't the best idea.
+    Also, calling \code{malloc} repeatedly will likely result in fragmented memory, meaning
+    that memory locality will be broken.
+    In addition, in 4-byte aligned systems, this will result in a 25\% utilization of the
+    malloc'd blocks.
+  \item
+    \code{typedef} doesn't need to define any \underline{new} types.
+    A typedef might simply create an alias to an already defined type, as in this nasty typedef:
+    \code{typedef char* string}
+\end{enumerate}
+
+\end{document}
