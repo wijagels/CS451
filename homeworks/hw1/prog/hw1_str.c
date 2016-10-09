@@ -6,6 +6,10 @@
 #include <string.h>
 
 int str_manip(char *str, char *substr) {
+    if (!str || !substr) {
+        fprintf(stderr, "Invalid arguments\n");
+        return -1;
+    }
     size_t str_len = strlen(str);
     size_t substr_len = strlen(substr);
     printf("str %s\n", str);
@@ -29,8 +33,9 @@ int str_manip(char *str, char *substr) {
         substr_low[i] = tolower(substr_low[i]);
     }
     int ocr = 0;
-    for (char *s = rev; (s = strstr(s, substr_low)); ocr++, s++)
-        ;
+    if (substr_len != 0)
+        for (char *s = rev; (s = strstr(s, substr_low)); ocr++, s++)
+            ;
     printf("occurences %d\n", ocr);
     return 0;
 }

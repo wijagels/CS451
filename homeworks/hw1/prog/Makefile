@@ -1,7 +1,7 @@
 CFLAGS=-g -static -Wall -Wextra -pedantic -std=c11
 ARFLAGS=rcs
 SRCEXT=c
-SOURCES=$(shell find . -type f -name "*.$(SRCEXT)")
+SOURCES=hw1_str.c hw1_myprintf.c
 OBJECTS=$(patsubst %.$(SRCEXT),%.o,$(SOURCES))
 STATICLIB=hw1.a
 

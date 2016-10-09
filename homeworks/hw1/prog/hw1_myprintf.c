@@ -5,6 +5,7 @@
 
 int myprintf(const char* format, ...) {
     size_t f_len = strlen(format);
+    int count = 0;
     for (int k = 0; k < 2; k++) {
         if (k == 1) printf("\nArgument List:\n");
         va_list args;
@@ -17,7 +18,7 @@ int myprintf(const char* format, ...) {
                     case 'c': {
                         char chr = va_arg(args, int);
                         if (k == 0)
-                            printf("%c", chr);
+                            count += printf("%c", chr);
                         else
                             printf("Char-->%c\n", chr);
                         break;
@@ -25,7 +26,7 @@ int myprintf(const char* format, ...) {
                     case 'd': {
                         int num = va_arg(args, int);
                         if (k == 0)
-                            printf("%d", num);
+                            count += printf("%d", num);
                         else
                             printf("Integer-->%d\n", num);
                         break;
@@ -33,7 +34,7 @@ int myprintf(const char* format, ...) {
                     case 's': {
                         const char* str = va_arg(args, const char*);
                         if (k == 0)
-                            printf("%s", str);
+                            count += printf("%s", str);
                         else
                             printf("String-->%s\n", str);
                         break;
@@ -42,9 +43,9 @@ int myprintf(const char* format, ...) {
                         return -1;
                 }
             } else {
-                if (k == 0) printf("%c", format[i]);
+                if (k == 0) count += printf("%c", format[i]);
             }
         }
     }
-    return 0;
+    return count;
 }
