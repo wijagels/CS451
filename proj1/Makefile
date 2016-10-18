@@ -1,4 +1,4 @@
-CFLAGS=-g -static -Wall -Wextra -pedantic -std=c11
+CFLAGS=-g -static -Wall -Wextra -std=c11
 ARFLAGS=rcs
 SRCEXT=c
 SOURCES=bitmap.c memory_manager.c

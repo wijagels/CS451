@@ -9,13 +9,13 @@
 #include "common.h"
 
 /* Data allocation alignment. */
-#define MEM_ALIGNMENT_BOUNDARY 8
+#define MEM_ALIGNMENT_BOUNDARY 64
 
 /* The number of memory slots in a memory batch. */
-#define MEM_BATCH_SLOT_COUNT 8
+#define MEM_BATCH_SLOT_COUNT 32
 
 /* An auxiliary macro to get the aligned size given the size requested */
-#define SLOT_ALLINED_SIZE(size)                                     \
+#define SLOT_ALIGNED_SIZE(size)                                     \
   (((size + MEM_ALIGNMENT_BOUNDARY - 1) / MEM_ALIGNMENT_BOUNDARY) * \
    MEM_ALIGNMENT_BOUNDARY)
 

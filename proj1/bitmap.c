@@ -3,6 +3,7 @@
  * This file needs to be turned in.
  */
 
+#include <strings.h>
 #include "common.h"
 
 /*
@@ -18,12 +19,12 @@
  *          BITMAP_OP_ERROR (defined in "common.h") on any other errors
  */
 int bitmap_find_first_bit(unsigned char* bitmap, int size, int val) {
-    if (val != 0 || val != 1 || size == 0) return BITMAP_OP_ERROR;
+    if ((val != 0 && val != 1) || size == 0) return BITMAP_OP_ERROR;
     for (int i = 0; i < size; i++) {
-        unsigned char val = bitmap[i];
-        if (val == 0) val = ~val;
-        int idx = __builtin_ffs(val);
-        if (idx != 0) return i * BIT_PER_BYTE + (idx - 1);
+        unsigned char element = bitmap[i];
+        if (val == 0) element = ~element;
+        int idx = ffs(element);
+        if (idx) return i * BIT_PER_BYTE + (idx - 1);
     }
     return BITMAP_OP_NOT_FOUND;
 }
