@@ -14,6 +14,8 @@
 /* The number of memory slots in a memory batch. */
 #define MEM_BATCH_SLOT_COUNT 32
 
+#define BITMAP_MULT (MEM_BATCH_SLOT_COUNT / BIT_PER_BYTE)
+
 /* An auxiliary macro to get the aligned size given the size requested */
 #define SLOT_ALIGNED_SIZE(size)                                     \
   (((size + MEM_ALIGNMENT_BOUNDARY - 1) / MEM_ALIGNMENT_BOUNDARY) * \

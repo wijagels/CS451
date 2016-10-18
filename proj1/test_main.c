@@ -22,6 +22,22 @@ int main(int argc, char* argv[]) {
     char* arr = malloc(10);
     arr = "helloworld";
     printf("%s\n", arr);
+    int* integers = malloc(10000 * sizeof(int));
+    for (int i = 0; i < 10000; i++) {
+        integers[i] = i;
+    }
+
+    for (int i = 0; i < 1000; i += 2) {
+        printf("%d\n", integers[i]);
+    }
+    free(integers);
+
+    void* m[30];
+    for (int i = 0; i < 30; i++) {
+        m[i] = malloc(512);
+    }
+
+    for (int i = 0; i < 30; i++) free(m[i]);
 
     // test your code here.
 

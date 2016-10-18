@@ -87,8 +87,7 @@ static STRU_MEM_LIST* mem_list_ctor(int slot_size) {
     list->batch_count = 1;
     list->next_list = NULL;
     list->first_batch = mem_batch_ctor(slot_size);
-    list->free_slots_bitmap =
-        calloc(1, sizeof(unsigned char) * (MEM_BATCH_SLOT_COUNT / 8));
+    list->free_slots_bitmap = calloc(1, sizeof(unsigned char) * BITMAP_MULT);
     list->bitmap_size = 1;
     return list;
 }
@@ -132,13 +131,13 @@ void* mem_mngr_alloc(size_t size) {
     if (idx == BITMAP_OP_NOT_FOUND) {
         ++pool->batch_count;
         unsigned char* new_bitmap =
-            calloc(pool->batch_count,
-                   sizeof(unsigned char) * (MEM_BATCH_SLOT_COUNT / 8));
+            calloc(pool->batch_count, sizeof(unsigned char) * BITMAP_MULT);
         /* Grow the bitmap starting from index 0 */
-        memcpy(new_bitmap + (MEM_BATCH_SLOT_COUNT / 8), pool->free_slots_bitmap,
-               pool->batch_count - 1);
+        memcpy(new_bitmap + (MEM_BATCH_SLOT_COUNT / BIT_PER_BYTE),
+               pool->free_slots_bitmap, pool->batch_count - 1);
         free(pool->free_slots_bitmap);
         pool->free_slots_bitmap = new_bitmap;
+        pool->bitmap_size += BITMAP_MULT;
         /* Push to the front because I'm lazy */
         STRU_MEM_BATCH* new_batch = mem_batch_ctor(size);
         new_batch->next_batch = pool->first_batch;
@@ -150,6 +149,7 @@ void* mem_mngr_alloc(size_t size) {
     for (int i = 0; i < idx / MEM_BATCH_SLOT_COUNT; i++) {
         batch = batch->next_batch;
     }
+    bitmap_set_bit(pool->free_slots_bitmap, pool->bitmap_size, idx);
     return batch->batch_mem + (size * (idx % MEM_BATCH_SLOT_COUNT));
 }
 
@@ -164,9 +164,12 @@ void mem_mngr_free(void* ptr) { /* Add your code here */
         while (batch) {
             size_t slot_sz = pool->slot_size;
             void* upper = batch->batch_mem + MEM_BATCH_SLOT_COUNT * slot_sz;
-            if (ptr > batch->batch_mem && ptr < upper) {
-                index += (ptr - batch->batch_mem) / pool->slot_size;
-                if (0 >= bitmap_bit_is_set(pool->free_slots_bitmap,
+            if (ptr >= batch->batch_mem && ptr < upper) {
+                index += (ptr - batch->batch_mem) / slot_sz;
+                fprintf(stderr, "%d, %d\n", index,
+                        bitmap_bit_is_set(pool->free_slots_bitmap,
+                                          pool->bitmap_size, index));
+                if (1 != bitmap_bit_is_set(pool->free_slots_bitmap,
                                            pool->bitmap_size, index)) {
                     fprintf(stderr,
                             "Double free of %p detected, fix your code\n", ptr);
@@ -177,6 +180,7 @@ void mem_mngr_free(void* ptr) { /* Add your code here */
                 return;
             }
             index += MEM_BATCH_SLOT_COUNT;
+            batch = batch->next_batch;
         }
         pool = pool->next_list;
     }
