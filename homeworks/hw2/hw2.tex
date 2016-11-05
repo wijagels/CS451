@@ -1,0 +1,147 @@
+\documentclass[a4paper,11pt]{article}
+
+\usepackage[english]{babel}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage[colorinlistoftodos]{todonotes}
+\usepackage{enumitem}
+\usepackage{listings}
+\lstset{basicstyle=\footnotesize\ttfamily,breaklines=true}
+\lstset{frame=tb,language=C,numbers=left,showstringspaces=false}
+\renewcommand{\lstlistingname}{Code Block}
+
+\usepackage{geometry}
+\geometry{total={210mm,297mm},
+left=25mm, right=25mm,
+bindingoffset=0mm,
+top=20mm, bottom=20mm}
+
+\usepackage[
+  pdftitle={Homework Assignment 2},
+  pdfauthor={William Jagels},
+  colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue,bookmarks=true,
+bookmarksopenlevel=2]{hyperref}
+
+\usepackage{titlesec}
+\titlelabel{\thetitle.\quad}
+\renewcommand{\thesection}{\Roman{section}}
+
+\def\code#1{\texttt{#1}}
+
+\title{Homework Assignment 2}
+
+\author{William Jagels}
+
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{Q\&A}
+
+\subsection{}
+\begin{enumerate}
+  \item x.dat is an empty file because it was created with the \code{O\_CREAT} flag
+  \item x.dat is still empty because it was just opened
+  \item x.dat now contains \code{AAAAAA} because it was written to from the beginning
+  \item x.dat now contains \code{BBBAAA} because \code{fd2} still writes from the beginning
+    which overwrites the previous bytes
+  \item x.dat does not change, but \code{fd2} will be closed and become a copy of \code{fd1}
+  \item x.dat now contains \code{BBBAAABBB} because \code{fd2} is a duplicate of \code{fd1}, with
+    the same file offset, so it will write to the end.
+  \item x.dat will not change, but it will now no longer be marked in the open table.
+\end{enumerate}
+
+\subsection{}
+\code{stdout} is normally line-buffered, so every time a newline character is encountered,
+the buffer is flushed and output is visible in the terminal.
+Normal redirection is fully-buffered, so after a certain number of bytes, the buffer is flushed,
+at which point it becomes visible on the terminal.
+The first instance of \code{t} has fully buffered output thanks to the \code{|} operator, so
+the second instance of \code{t} gets everything in batches, which it then echoes into a
+line-buffered output.
+
+
+\subsection{}
+\begin{enumerate}
+  \item \code{dir\_name} is not large enough for the null terminator.
+  \item \code{stat()} gets symlink targets, not the link itself.
+    Should use \code{lstat()}.
+  \item The call to \code{sprintf()} is wrong, \code{dir\_name} needs to be
+    before the other arguments.
+  \item \code{statP} is an uninitialized pointer, this will crash the call to
+    \code{stat()}.
+    Instead of a pointer, statP should be declared as an automatic variable,
+    and its address should be passed to \code{stat()}.
+    This also requires updating the call to \code{S\_ISLNK()}.
+  \item \code{dir} is redeclared, either rename the string or the \code{DIR *}.
+  \item \code{readdir()} returns a \code{struct dirent *}, so \code{dP} must be
+    declared as \code{struct dirent *dP}.
+\end{enumerate}
+
+
+\subsection{}
+\begin{tabular}{| l | l | l | l | l |}
+  \hline
+  & \code{data1 R} & \code{data1 W} & \code{data2 R} & \code{data2 W} \\ \hline
+  \code{u1} runs \code{exec1} & Y & N & Y & Y \\ \hline
+  \code{u2} runs \code{exec1} & Y & Y & N & Y \\ \hline
+  \code{u1} runs \code{exec2} & Y & N & Y & Y \\ \hline
+  \code{u2} runs \code{exec2} & Y & Y & Y & Y \\ \hline
+\end{tabular}
+
+The first column is easy, \code{data1} will always be readable because it has the read
+bit on for owner, group, and everyone.
+In the second column, \code{u1} is unable to write as a consequence of having
+auxiliary group \code{g2}.
+For the third column, \code{u2} will not be able to read unless they run \code{exec2}
+which gives them an effective uid of \code{u1}.
+And for the fourth column, \code{data2} is only non-writable when the gid is \code{g1}
+and the uid is not \code{u1}.
+This state is impossible, so all can write.
+\subsection{}
+\begin{enumerate}
+  \item \code{cd} must be a built-in command because since shells fork before executing
+    a program, changes to the working directory will be lost as soon as a theoretical
+    \code{cd} binary finishes.
+  \item \code{pwd} can be an external binary because it just has to read the working
+    directory and print it, and the working directory is inherited from the shell.
+  \item \code{exec} must be a built-in command because a binary would not be able to
+    replace the shell since it would only replace the forked instance.
+  \item \code{exit} must be a built-in command because the shell forks first, so any attempts
+    by an external process to exit or crash the shell will have no effect.
+    However, if the PID of the shell could be determined, the binary could send a termination
+    signal to the shell.
+    This would still require some built-in shell support for passing along the PID of the main
+    shell process.
+\end{enumerate}
+
+\subsection{}
+\begin{enumerate}
+  \item This is valid unless the writing failed, because the offset is incremented
+    when bytes are successfully written to files.
+    Non-empty data can be written, but fail, in which case the statement is invalid.
+    There's also the case where you use \code{pwrite()} which will write and then restore
+    the file offset atomically.
+  \item As long as the user has ownership over that file, they can delete it even
+    if the permissions are set to none.
+    However, if the parent directory changes to non-executable for that user,
+    the file will be non-accessible and consequentially, non removable.
+    Since the question only restricted changes to the file itself, this statement
+    is invalid in the case when the parent directories are manipulated.
+  \item The user id part of this statement is valid, but the group part is not.
+    In the event that set-group-ID is active on the parent directory, then the gid
+    is set as the gid of the parent directory.
+    When the bit is not set, the gid is set to the effective gid of the calling process.
+    (Taken from \code{open(2)}).
+  \item This statement is invalid.
+    Moving a file should only require updating directory listings to point to the inode
+    that points to the file.
+    A bad programmer could theoretically copy and remove, but using \code{rename()} is
+    easier and more efficient.
+\end{enumerate}
+
+\end{document}
