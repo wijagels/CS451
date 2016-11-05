@@ -88,7 +88,7 @@ static STRU_MEM_LIST* mem_list_ctor(int slot_size) {
     list->next_list = NULL;
     list->first_batch = mem_batch_ctor(slot_size);
     list->free_slots_bitmap = calloc(1, sizeof(unsigned char) * BITMAP_MULT);
-    list->bitmap_size = 1;
+    list->bitmap_size = BITMAP_MULT;
     return list;
 }
 
@@ -106,6 +106,7 @@ static STRU_MEM_BATCH* mem_batch_ctor(int slot_size) {
  * Allocate a chunk of memory
  */
 void* mem_mngr_alloc(size_t size) {
+    if (size == 0) return NULL;
     STRU_MEM_LIST* last = NULL;
     STRU_MEM_LIST* pool = mem_pool;
     size = SLOT_ALIGNED_SIZE(size); /* We don't care about the original size */
