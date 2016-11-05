@@ -129,6 +129,7 @@ void* mem_mngr_alloc(size_t size) {
     int idx =
         bitmap_find_first_bit(pool->free_slots_bitmap, pool->bitmap_size, 0);
     if (idx == BITMAP_OP_NOT_FOUND) {
+        /* Prepend a batch */
         ++pool->batch_count;
         unsigned char* new_bitmap =
             calloc(pool->batch_count, sizeof(unsigned char) * BITMAP_MULT);
@@ -166,9 +167,6 @@ void mem_mngr_free(void* ptr) { /* Add your code here */
             void* upper = batch->batch_mem + MEM_BATCH_SLOT_COUNT * slot_sz;
             if (ptr >= batch->batch_mem && ptr < upper) {
                 index += (ptr - batch->batch_mem) / slot_sz;
-                fprintf(stderr, "%d, %d\n", index,
-                        bitmap_bit_is_set(pool->free_slots_bitmap,
-                                          pool->bitmap_size, index));
                 if (1 != bitmap_bit_is_set(pool->free_slots_bitmap,
                                            pool->bitmap_size, index)) {
                     fprintf(stderr,
