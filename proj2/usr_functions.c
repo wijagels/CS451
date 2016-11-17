@@ -8,6 +8,8 @@
 #include "common.h"
 #include "usr_functions.h"
 
+#define INIT_LINE_SIZE 256
+
 /* User-defined map function for the "Letter counter" task.
    This map function is called in a map worker process.
    @param split: The data split that the map function is going to work on.  Note
@@ -18,7 +20,6 @@
    @ret: 0 on success, -1 on error.
  */
 int letter_counter_map(DATA_SPLIT* split, int fd_out) {
-    // add your implementation here ...
     int freq[26] = {0};  // Zero initialize
     FILE* fp = fdopen(split->fd, "r");
     FILE* wp = fdopen(fd_out, "w");
@@ -46,8 +47,8 @@ int letter_counter_map(DATA_SPLIT* split, int fd_out) {
    @param fd_out: The file descriptor of the final result file.
    @ret: 0 on success, -1 on error.
    @example: if fd_in_num == 3, then there are 3 intermediate files, whose file
-   descriptor is
-             identified by p_fd_in[0], p_fd_in[1], and p_fd_in[2] respectively.
+   descriptor is identified by p_fd_in[0], p_fd_in[1], and p_fd_in[2]
+   respectively.
 
 */
 int letter_counter_reduce(int* p_fd_in, int fd_in_num, int fd_out) {
@@ -55,8 +56,8 @@ int letter_counter_reduce(int* p_fd_in, int fd_in_num, int fd_out) {
     int freq[26] = {0};
     FILE* wp = fdopen(fd_out, "w");
     for (int i = 0; i < fd_in_num; i++) {
-        lseek(p_fd_in[i], 0, SEEK_SET);
         FILE* fp = fdopen(p_fd_in[i], "r");
+        rewind(fp);
         clearerr(fp);
         while (!feof(fp)) {
             char c = 0;
@@ -81,13 +82,32 @@ int letter_counter_reduce(int* p_fd_in, int fd_in_num, int fd_out) {
    that the file offset of the file descriptor split->fd
    should be set to the properly position when this map function is called.
    @param fd_out: The file descriptor of the intermediate data file output by
-   the
-   map function.
+   the map function.
    @ret: 0 on success, -1 on error.
  */
 int word_finder_map(DATA_SPLIT* split, int fd_out) {
-    // add your implementation here ...
+    FILE* fp = fdopen(split->fd, "r");
+    FILE* wp = fdopen(fd_out, "w");
+    char* line_buf = malloc(INIT_LINE_SIZE * sizeof(char));
+    if (!line_buf) {
+        ERR_MSG("Malloc of size %lu failed, halting.\n",
+                INIT_LINE_SIZE * sizeof(char));
+        return -1;
+    }
+    ssize_t read_total = 0;
+    ssize_t read;
+    size_t n = INIT_LINE_SIZE;
+    while (read_total < split->size &&
+           (read = getline(&line_buf, &n, fp)) != -1) {
+        read_total += read;
+        if (strstr(line_buf, split->usr_data)) {
+            fprintf(wp, "%s", line_buf);
+        }
+    }
+    fflush(wp);
+    fclose(fp);
 
+    free(line_buf);
     return 0;
 }
 
@@ -105,7 +125,25 @@ int word_finder_map(DATA_SPLIT* split, int fd_out) {
 
 */
 int word_finder_reduce(int* p_fd_in, int fd_in_num, int fd_out) {
-    // add your implementation here ...
-
+    sync();
+    FILE* wp = fdopen(fd_out, "w");
+    char* line_buf = malloc(INIT_LINE_SIZE * sizeof(char));
+    if (!line_buf) {
+        ERR_MSG("Malloc of size %lu failed, halting.\n",
+                INIT_LINE_SIZE * sizeof(char));
+        return -1;
+    }
+    ssize_t read;
+    size_t n = INIT_LINE_SIZE;
+    for (int i = 0; i < fd_in_num; i++) {
+        FILE* fp = fdopen(p_fd_in[i], "r");
+        rewind(fp);
+        clearerr(fp);
+        while ((read = getline(&line_buf, &n, fp)) != -1) {
+            fprintf(wp, "%s", line_buf);
+        }
+    }
+    free(line_buf);
+    fclose(wp);
     return 0;
 }

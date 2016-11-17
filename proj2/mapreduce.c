@@ -50,12 +50,13 @@ void mapreduce(MAPREDUCE_SPEC* spec, MAPREDUCE_RESULT* result) {
     char special_snowflake = 1;
 
     for (int i = 0; i < spec->split_num - 1; i++) {
-        size_t part_sz = boundary;
-        fseek(fp, boundary, SEEK_CUR);
+        int64_t part_sz = boundary - (ftell(fp) - boundary * i);
+        DEBUG_MSG("Part_sz = %ld\n", part_sz);
+        fseek(fp, part_sz, SEEK_CUR);
         ++part_sz;
         char c = fgetc(fp);
-        /* Stop as soon as we hit a non-letter */
-        while (isalpha(c)) {
+        /* Stop as soon as we hit a line break */
+        while (c != '\n') {
             ++part_sz;
             c = fgetc(fp);
         }
