@@ -234,6 +234,7 @@ a.out
 
 # Core dumps
 core
+vgcore.*
 
 # Lab executables
 lab[0-9]*

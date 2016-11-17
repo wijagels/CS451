@@ -1,5 +1,5 @@
 TARGET = run-mapreduce
-CFLAGS := -std=gnu11 -Wall -Wextra -Wno-variadic-macros -pedantic-errors
+CFLAGS := -std=gnu11 -g -Wall -Wextra -Wno-variadic-macros -pedantic-errors
 CC ?= gcc
 
 all: $(TARGET)
