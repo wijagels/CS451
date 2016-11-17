@@ -51,15 +51,18 @@ int letter_counter_map(DATA_SPLIT* split, int fd_out) {
 
 */
 int letter_counter_reduce(int* p_fd_in, int fd_in_num, int fd_out) {
+    sync();
     int freq[26] = {0};
     FILE* wp = fdopen(fd_out, "w");
     for (int i = 0; i < fd_in_num; i++) {
         lseek(p_fd_in[i], 0, SEEK_SET);
         FILE* fp = fdopen(p_fd_in[i], "r");
+        clearerr(fp);
         while (!feof(fp)) {
             char c = 0;
             int num = 0;
             fscanf(fp, "%c %d\n", &c, &num);
+            if (c == 0) ERR_MSG("%s %d\n", "Invalid map file", p_fd_in[i]);
             freq[c - 'A'] += num;
         }
         fclose(fp);

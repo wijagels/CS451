@@ -34,8 +34,10 @@ void mapreduce(MAPREDUCE_SPEC* spec, MAPREDUCE_RESULT* result) {
     fseek(fp, 0, SEEK_END);
     int64_t sz = ftell(fp);
     rewind(fp);
+    DEBUG_MSG("File size: %ld\n", sz);
 
     int64_t boundary = sz / spec->split_num;
+    DEBUG_MSG("Boundary size: %ld\n", boundary);
     char part_name[FILENAME_MAX];
     fd_arr = malloc(spec->split_num * sizeof(int));
     pid_arr = malloc(spec->split_num * sizeof(pid_t));
