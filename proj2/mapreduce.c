@@ -50,6 +50,7 @@ void mapreduce(MAPREDUCE_SPEC* spec, MAPREDUCE_RESULT* result) {
     for (int i = 0; i < spec->split_num - 1; i++) {
         size_t part_sz = boundary;
         fseek(fp, boundary, SEEK_CUR);
+        ++part_sz;
         char c = fgetc(fp);
         /* Stop as soon as we hit a non-letter */
         while (isalpha(c)) {
@@ -113,6 +114,7 @@ void worker(MAPREDUCE_SPEC* spec, DATA_SPLIT* ds, int fd,
 
     if (special_snowflake) {
         sigprocmask(SIG_UNBLOCK, &sigmask, NULL);
+        unlink("mr.rst");
         int rst_fd = open("mr.rst", O_CREAT | O_WRONLY, S_IRWXU);
         pthread_mutex_lock(&reduce_lock);
         spec->reduce_func(fd_arr, spec->split_num, rst_fd);
