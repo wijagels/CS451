@@ -23,6 +23,7 @@ int letter_counter_map(DATA_SPLIT* split, int fd_out) {
     int freq[26] = {0};  // Zero initialize
     FILE* fp = fdopen(split->fd, "r");
     FILE* wp = fdopen(fd_out, "w");
+    if (!fp || !wp) return 1;
     for (int i = 0; i < split->size; i++) {
         char c = fgetc(fp);
         if (isalpha(c)) {
@@ -52,11 +53,12 @@ int letter_counter_map(DATA_SPLIT* split, int fd_out) {
 
 */
 int letter_counter_reduce(int* p_fd_in, int fd_in_num, int fd_out) {
-    sync();
     int freq[26] = {0};
     FILE* wp = fdopen(fd_out, "w");
+    if (!wp) return 1;
     for (int i = 0; i < fd_in_num; i++) {
         FILE* fp = fdopen(p_fd_in[i], "r");
+        if (!fp) return 1;
         rewind(fp);
         clearerr(fp);
         while (!feof(fp)) {
@@ -88,6 +90,7 @@ int letter_counter_reduce(int* p_fd_in, int fd_in_num, int fd_out) {
 int word_finder_map(DATA_SPLIT* split, int fd_out) {
     FILE* fp = fdopen(split->fd, "r");
     FILE* wp = fdopen(fd_out, "w");
+    if (!fp || !wp) return 1;
     char* line_buf = malloc(INIT_LINE_SIZE * sizeof(char));
     if (!line_buf) {
         _EXIT_ERROR(2, "Malloc of size %lu failed, halting.\n",
@@ -124,8 +127,8 @@ int word_finder_map(DATA_SPLIT* split, int fd_out) {
 
 */
 int word_finder_reduce(int* p_fd_in, int fd_in_num, int fd_out) {
-    sync();
     FILE* wp = fdopen(fd_out, "w");
+    if (!wp) return 1;
     char* line_buf = malloc(INIT_LINE_SIZE * sizeof(char));
     if (!line_buf) {
         _EXIT_ERROR(2, "Malloc of size %lu failed, halting.\n",
@@ -135,6 +138,7 @@ int word_finder_reduce(int* p_fd_in, int fd_in_num, int fd_out) {
     size_t n = INIT_LINE_SIZE;
     for (int i = 0; i < fd_in_num; i++) {
         FILE* fp = fdopen(p_fd_in[i], "r");
+        if (!fp) return 1;
         rewind(fp);
         clearerr(fp);
         while ((read = getline(&line_buf, &n, fp)) != -1) {

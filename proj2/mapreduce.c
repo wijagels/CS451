@@ -1,8 +1,6 @@
 #include "mapreduce.h"
 #include <ctype.h>
-#include <errno.h>
 #include <fcntl.h>
-#include <linux/limits.h>
 #include <semaphore.h>
 #include <signal.h>
 #include <stdio.h>
@@ -16,7 +14,7 @@
 static int* fd_arr;
 static sem_t reduce_sem;
 
-void sigusr1_handler(int);
+void sigusr1_handler(int sig);
 void worker(MAPREDUCE_SPEC*, DATA_SPLIT*, int, char);
 
 void mapreduce(MAPREDUCE_SPEC* spec, MAPREDUCE_RESULT* result) {
@@ -46,7 +44,8 @@ void mapreduce(MAPREDUCE_SPEC* spec, MAPREDUCE_RESULT* result) {
     if (!fd_arr) EXIT_ERROR(1, "%s", "Fatal malloc error");
     for (int i = 0; i < spec->split_num; i++) {
         snprintf(part_name, FILENAME_MAX, "mr-%d.itm", i);
-        fd_arr[i] = open(part_name, O_CREAT | O_RDWR | O_TRUNC, S_IRWXU);
+        fd_arr[i] =
+            open(part_name, O_CREAT | O_RDWR | O_TRUNC, S_IRUSR | S_IWUSR);
     }
     char special_snowflake = 1;
 
@@ -108,7 +107,6 @@ void mapreduce(MAPREDUCE_SPEC* spec, MAPREDUCE_RESULT* result) {
     result->filepath = "mr.rst";
     fclose(fp);
     free(fd_arr);
-    sync();  // Ensure everything is written
 }
 
 void sigusr1_handler(int sig) {
@@ -128,16 +126,20 @@ void worker(MAPREDUCE_SPEC* spec, DATA_SPLIT* ds, int fd,
     }
 
     int rval = spec->map_func(ds, fd);
+    if (rval) {
+        _EXIT_ERROR(rval, "map_func failed on %d failed\n", getpid());
+    }
 
     if (special_snowflake) {
         sigprocmask(SIG_UNBLOCK, &sigmask, NULL);
         unlink("mr.rst");
-        int rst_fd = open("mr.rst", O_CREAT | O_WRONLY | O_TRUNC, S_IRWXU);
+        int rst_fd =
+            open("mr.rst", O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR);
         DEBUG_MSG("Worker %d waiting on siblings\n", getpid());
         kill(getppid(), SIGUSR1);
         sem_wait(&reduce_sem);
         DEBUG_MSG("Worker %d moving to reduce phase\n", getpid());
-        spec->reduce_func(fd_arr, spec->split_num, rst_fd);
+        rval = spec->reduce_func(fd_arr, spec->split_num, rst_fd);
     }
     free(fd_arr);
     DEBUG_MSG("Worker %d completed\n", getpid());

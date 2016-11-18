@@ -1,7 +1,7 @@
 TARGET := run-mapreduce
 CFLAGS := -std=gnu11 -g -O3 -lpthread -Wall -Wextra -Wno-variadic-macros -pedantic-errors
 CC := gcc
-WORKERS := 32
+WORKERS := 4
 
 all: $(TARGET)
 
@@ -24,47 +24,35 @@ test-count: test-count-sm test-count-md test-count-lg
 test-find: test-find-sm test-find-md test-find-lg
 
 test-count-sm: $(TARGET)
-	sync
 	./$(TARGET) counter input-alice30.txt $(WORKERS)
 	./charcount.py input-alice30.txt
-	sync
 	diff charcount-out.rst mr.rst
 
 test-count-md: $(TARGET)
-	sync
 	./$(TARGET) counter input-moon10.txt $(WORKERS)
 	./charcount.py input-moon10.txt
-	sync
 	diff charcount-out.rst mr.rst
 
 test-count-lg: $(TARGET)
-	sync
 	./$(TARGET) counter input-warpeace.txt $(WORKERS)
 	./charcount.py input-warpeace.txt
-	sync
 	diff charcount-out.rst mr.rst
 
 
 test-find-sm: $(TARGET)
-	sync
 	./$(TARGET) finder input-alice30.txt $(WORKERS) the
 	cat input-alice30.txt | grep the > find.rst
-	sync
 	diff find.rst mr.rst
 
 
 test-find-md: $(TARGET)
-	sync
 	./$(TARGET) finder input-moon10.txt $(WORKERS) the
 	cat input-moon10.txt | grep the > find.rst
-	sync
 	diff find.rst mr.rst
 
 test-find-lg: $(TARGET)
-	sync
 	./$(TARGET) finder input-warpeace.txt $(WORKERS) the
 	cat input-warpeace.txt | grep the > find.rst
-	sync
 	diff find.rst mr.rst
 
 clean:

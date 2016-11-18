@@ -19,7 +19,6 @@
 
 #define US_PER_SEC 1000000
 
-#define DEBUG
 #ifdef DEBUG
 #define DEBUG_MSG(fmt, args...) \
   fprintf(stderr, "%s(): \t" fmt, __func__, ##args)
