@@ -9,8 +9,12 @@
 #include "usr_functions.h"
 
 #define INIT_LINE_SIZE 256
+#define BLOCK_SIZE 4096
 
-/* User-defined map function for the "Letter counter" task.
+inline int64_t min(int64_t r, int64_t l) { return r < l ? r : l; }
+
+/*
+   User-defined map function for the "Letter counter" task.
    This map function is called in a map worker process.
    @param split: The data split that the map function is going to work on.  Note
    that the file offset of the file descriptor split->fd should be set to the
@@ -24,11 +28,21 @@ int letter_counter_map(DATA_SPLIT* split, int fd_out) {
     FILE* fp = fdopen(split->fd, "r");
     FILE* wp = fdopen(fd_out, "w");
     if (!fp || !wp) return 1;
-    for (int i = 0; i < split->size; i++) {
-        char c = fgetc(fp);
-        if (isalpha(c)) {
-            c = toupper(c);
-            freq[c - 'A']++;
+    char* str_buf = malloc(BLOCK_SIZE * sizeof(*str_buf));
+    if (!str_buf) return 2;
+    int64_t read_bytes = 0;
+    size_t rd_sz;
+    while (read_bytes < split->size &&
+           (rd_sz = fread(str_buf, 1,
+                          min(BLOCK_SIZE, (split->size - read_bytes)), fp)) >
+               0) {
+        read_bytes += rd_sz;
+        for (size_t i = 0; i < rd_sz; i++) {
+            char c = str_buf[i];
+            if (isalpha(c)) {
+                c = toupper(c);
+                freq[c - 'A']++;
+            }
         }
     }
     for (int i = 0; i < 26; i++) {
@@ -36,10 +50,12 @@ int letter_counter_map(DATA_SPLIT* split, int fd_out) {
     }
     fflush(wp);
     fclose(fp);
+    free(str_buf);
     return 0;
 }
 
-/* User-defined reduce function for the "Letter counter" task.
+/*
+   User-defined reduce function for the "Letter counter" task.
    This reduce function is called in a reduce worker process.
    @param p_fd_in: The address of the buffer holding the intermediate data
    files' file descriptors.  The intermediate data files are output by the map
@@ -78,7 +94,8 @@ int letter_counter_reduce(int* p_fd_in, int fd_in_num, int fd_out) {
     return 0;
 }
 
-/* User-defined map function for the "Word finder" task.
+/*
+   User-defined map function for the "Word finder" task.
    This map function is called in a map worker process.
    @param split: The data split that the map function is going to work on.  Note
    that the file offset of the file descriptor split->fd
@@ -91,10 +108,10 @@ int word_finder_map(DATA_SPLIT* split, int fd_out) {
     FILE* fp = fdopen(split->fd, "r");
     FILE* wp = fdopen(fd_out, "w");
     if (!fp || !wp) return 1;
-    char* line_buf = malloc(INIT_LINE_SIZE * sizeof(char));
+    char* line_buf = malloc(INIT_LINE_SIZE * sizeof(*line_buf));
     if (!line_buf) {
         _EXIT_ERROR(2, "Malloc of size %lu failed, halting.\n",
-                    INIT_LINE_SIZE * sizeof(char));
+                    INIT_LINE_SIZE * sizeof(*line_buf));
     }
     ssize_t read_total = 0;
     ssize_t read;
@@ -113,7 +130,8 @@ int word_finder_map(DATA_SPLIT* split, int fd_out) {
     return 0;
 }
 
-/* User-defined reduce function for the "Word finder" task.
+/*
+   User-defined reduce function for the "Word finder" task.
    This reduce function is called in a reduce worker process.
    @param p_fd_in: The address of the buffer holding the intermediate data
    files' file descriptors.  The intermediate data files are output by the map
@@ -124,15 +142,14 @@ int word_finder_map(DATA_SPLIT* split, int fd_out) {
    @example: if fd_in_num == 3, then there are 3 intermediate files, whose file
    descriptor is identified by p_fd_in[0], p_fd_in[1], and p_fd_in[2]
    respectively.
-
 */
 int word_finder_reduce(int* p_fd_in, int fd_in_num, int fd_out) {
     FILE* wp = fdopen(fd_out, "w");
     if (!wp) return 1;
-    char* line_buf = malloc(INIT_LINE_SIZE * sizeof(char));
+    char* line_buf = malloc(INIT_LINE_SIZE * sizeof(*line_buf));
     if (!line_buf) {
         _EXIT_ERROR(2, "Malloc of size %lu failed, halting.\n",
-                    INIT_LINE_SIZE * sizeof(char));
+                    INIT_LINE_SIZE * sizeof(*line_buf));
     }
     ssize_t read;
     size_t n = INIT_LINE_SIZE;
