@@ -60,10 +60,10 @@ int letter_counter_reduce(int* p_fd_in, int fd_in_num, int fd_out) {
         rewind(fp);
         clearerr(fp);
         while (!feof(fp)) {
-            char c = 0;
-            int num = 0;
-            fscanf(fp, "%c %d\n", &c, &num);
-            if (c == 0) ERR_MSG("%s %d\n", "Invalid map file", p_fd_in[i]);
+            char c;
+            int num;
+            int read = fscanf(fp, "%c %d\n", &c, &num);
+            if (read < 2) _EXIT_ERROR(1, "Corrupted map file %d\n", p_fd_in[i]);
             freq[c - 'A'] += num;
         }
         fclose(fp);
@@ -90,9 +90,8 @@ int word_finder_map(DATA_SPLIT* split, int fd_out) {
     FILE* wp = fdopen(fd_out, "w");
     char* line_buf = malloc(INIT_LINE_SIZE * sizeof(char));
     if (!line_buf) {
-        ERR_MSG("Malloc of size %lu failed, halting.\n",
-                INIT_LINE_SIZE * sizeof(char));
-        return -1;
+        _EXIT_ERROR(2, "Malloc of size %lu failed, halting.\n",
+                    INIT_LINE_SIZE * sizeof(char));
     }
     ssize_t read_total = 0;
     ssize_t read;
@@ -129,9 +128,8 @@ int word_finder_reduce(int* p_fd_in, int fd_in_num, int fd_out) {
     FILE* wp = fdopen(fd_out, "w");
     char* line_buf = malloc(INIT_LINE_SIZE * sizeof(char));
     if (!line_buf) {
-        ERR_MSG("Malloc of size %lu failed, halting.\n",
-                INIT_LINE_SIZE * sizeof(char));
-        return -1;
+        _EXIT_ERROR(2, "Malloc of size %lu failed, halting.\n",
+                    INIT_LINE_SIZE * sizeof(char));
     }
     ssize_t read;
     size_t n = INIT_LINE_SIZE;
@@ -142,6 +140,7 @@ int word_finder_reduce(int* p_fd_in, int fd_in_num, int fd_out) {
         while ((read = getline(&line_buf, &n, fp)) != -1) {
             fprintf(wp, "%s", line_buf);
         }
+        fclose(fp);
     }
     free(line_buf);
     fclose(wp);

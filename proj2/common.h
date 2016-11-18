@@ -21,13 +21,14 @@
 
 #define DEBUG
 #ifdef DEBUG
-#define DEBUG_MSG(fmt, args...) printf("%s(): \t" fmt, __func__, ##args)
+#define DEBUG_MSG(fmt, args...) \
+  fprintf(stderr, "%s(): \t" fmt, __func__, ##args)
 #else
 #define DEBUG_MSG(fmt, args...)
 #endif
 
 #define ERR_MSG(fmt, args...) \
-  printf("ERROR in %d:%s(): " fmt, __LINE__, __func__, ##args)
+  fprintf(stderr, "ERROR in %d:%s(): " fmt, __LINE__, __func__, ##args)
 
 #define EXIT_ERROR(v, fmt, args...) \
   do {                              \

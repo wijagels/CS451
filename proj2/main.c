@@ -88,7 +88,7 @@ int main(int argc, char* argv[]) {
     // argv[3] is the number of the splits
     if (!str_is_decimal_num(argv[3])) {
         printf(
-            "%s is not a valide split size. It should be a decimal number. \n",
+            "%s is not a valid split size. It should be a decimal number. \n",
             argv[3]);
         exit(0);
     }
@@ -128,6 +128,8 @@ int main(int argc, char* argv[]) {
 
     printf("Reduce worker pid: %d\n", result.reduce_worker_pid);
     printf("Processing time (us): %d\n", result.processing_time);
+
+    free(result.map_worker_pid);
 
     exit(0);
 }

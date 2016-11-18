@@ -3,7 +3,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/limits.h>
-#include <pthread.h>
+#include <semaphore.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,13 +14,15 @@
 #include "common.h"
 
 static int* fd_arr;
-static pid_t* pid_arr;
-static pthread_mutex_t reduce_lock = PTHREAD_MUTEX_INITIALIZER;
+static sem_t reduce_sem;
 
-void worker(MAPREDUCE_SPEC* spec, DATA_SPLIT* ds, int fd,
-            char special_snowflake);
+void sigusr1_handler(int);
+void worker(MAPREDUCE_SPEC*, DATA_SPLIT*, int, char);
 
 void mapreduce(MAPREDUCE_SPEC* spec, MAPREDUCE_RESULT* result) {
+    sem_init(&reduce_sem, 0, -1);
+    signal(SIGUSR1, &sigusr1_handler);
+
     struct timeval start, end;
 
     if (NULL == spec || NULL == result) {
@@ -40,12 +42,11 @@ void mapreduce(MAPREDUCE_SPEC* spec, MAPREDUCE_RESULT* result) {
     DEBUG_MSG("Boundary size: %ld\n", boundary);
     char part_name[FILENAME_MAX];
     fd_arr = malloc(spec->split_num * sizeof(int));
-    pid_arr = malloc(spec->split_num * sizeof(pid_t));
+    int* pid_arr = result->map_worker_pid;
     if (!fd_arr) EXIT_ERROR(1, "%s", "Fatal malloc error");
     for (int i = 0; i < spec->split_num; i++) {
         snprintf(part_name, FILENAME_MAX, "mr-%d.itm", i);
-        unlink(part_name);
-        fd_arr[i] = open(part_name, O_CREAT | O_RDWR, S_IRWXU);
+        fd_arr[i] = open(part_name, O_CREAT | O_RDWR | O_TRUNC, S_IRWXU);
     }
     char special_snowflake = 1;
 
@@ -63,6 +64,7 @@ void mapreduce(MAPREDUCE_SPEC* spec, MAPREDUCE_RESULT* result) {
         int64_t offset = ftell(fp) - part_sz - 1;
         pid_t pid = fork();
         if (!pid) {
+            free(pid_arr);
             int fd = open(spec->input_data_filepath, O_RDONLY);
             lseek(fd, offset, SEEK_SET);
             DATA_SPLIT ds = {fd, part_sz, spec->usr_data};
@@ -75,6 +77,7 @@ void mapreduce(MAPREDUCE_SPEC* spec, MAPREDUCE_RESULT* result) {
     int64_t offset = ftell(fp) - 1;
     pid_t pid = fork();
     if (!pid) {
+        free(pid_arr);
         int fd = open(spec->input_data_filepath, O_RDONLY);
         lseek(fd, offset, SEEK_SET);
         DATA_SPLIT ds = {fd, sz - offset, spec->usr_data};
@@ -83,9 +86,18 @@ void mapreduce(MAPREDUCE_SPEC* spec, MAPREDUCE_RESULT* result) {
     }
     pid_arr[spec->split_num - 1] = pid;
 
-    for (int i = 1; i < spec->split_num; i++) waitpid(pid_arr[i], NULL, 0);
+    int exit_status;
+    for (int i = 1; i < spec->split_num; i++) {
+        waitpid(pid_arr[i], &exit_status, 0);
+        if (exit_status != 0)
+            EXIT_ERROR(1, "Worker %d terminated abnormally\n", pid_arr[i]);
+    }
+    sem_wait(&reduce_sem);
+    DEBUG_MSG("%s\n", "Children complete, sending SIGUSR1");
     kill(pid_arr[0], SIGUSR1);
-    waitpid(pid_arr[0], NULL, 0);
+    waitpid(pid_arr[0], &exit_status, 0);
+    if (exit_status != 0)
+        EXIT_ERROR(1, "Reduce worker %d terminated abnormally\n", pid_arr[0]);
 
     gettimeofday(&end, NULL);
 
@@ -94,22 +106,24 @@ void mapreduce(MAPREDUCE_SPEC* spec, MAPREDUCE_RESULT* result) {
     result->map_worker_pid = pid_arr;
     result->reduce_worker_pid = pid_arr[0];
     result->filepath = "mr.rst";
+    fclose(fp);
     free(fd_arr);
+    sync();  // Ensure everything is written
 }
 
 void sigusr1_handler(int sig) {
-    if (sig == SIGUSR1) pthread_mutex_unlock(&reduce_lock);
+    DEBUG_MSG("Catching signal %d\n", sig);
+    if (sig == SIGUSR1) sem_post(&reduce_sem);
 }
 
 void worker(MAPREDUCE_SPEC* spec, DATA_SPLIT* ds, int fd,
             char special_snowflake) {
     sigset_t sigmask;
     if (special_snowflake) {
+        DEBUG_MSG("In here %d\n", getpid());
         sigemptyset(&sigmask);
         sigaddset(&sigmask, SIGUSR1);
         sigprocmask(SIG_BLOCK, &sigmask, NULL);
-
-        pthread_mutex_lock(&reduce_lock);
         signal(SIGUSR1, &sigusr1_handler);
     }
 
@@ -118,9 +132,14 @@ void worker(MAPREDUCE_SPEC* spec, DATA_SPLIT* ds, int fd,
     if (special_snowflake) {
         sigprocmask(SIG_UNBLOCK, &sigmask, NULL);
         unlink("mr.rst");
-        int rst_fd = open("mr.rst", O_CREAT | O_WRONLY, S_IRWXU);
-        pthread_mutex_lock(&reduce_lock);
+        int rst_fd = open("mr.rst", O_CREAT | O_WRONLY | O_TRUNC, S_IRWXU);
+        DEBUG_MSG("Worker %d waiting on siblings\n", getpid());
+        kill(getppid(), SIGUSR1);
+        sem_wait(&reduce_sem);
+        DEBUG_MSG("Worker %d moving to reduce phase\n", getpid());
         spec->reduce_func(fd_arr, spec->split_num, rst_fd);
     }
+    free(fd_arr);
+    DEBUG_MSG("Worker %d completed\n", getpid());
     _exit(rval);
 }
