@@ -31,6 +31,9 @@ mybarrier_t* mybarrier_init(unsigned int count) {
 }
 
 int mybarrier_destroy(mybarrier_t* barrier) {
+    if (NULL == barrier) {
+        return -1;
+    }
     int ret = 0;
 
     pthread_mutex_lock(&barrier->mutex);
@@ -50,12 +53,18 @@ int mybarrier_destroy(mybarrier_t* barrier) {
 }
 
 int mybarrier_wait(mybarrier_t* barrier) {
+    if (NULL == barrier) {
+        return -1;
+    }
+    if (barrier->count < 0) {
+        return -1;
+    }
     int ret = 0;
 
     pthread_rwlock_rdlock(&barrier->dtor_lock);
     pthread_mutex_lock(&barrier->mutex);
     --barrier->count;
-    if (barrier->count <= 0) {
+    if (barrier->count == 0) {
         ret = pthread_cond_broadcast(&barrier->cond);
     } else {
         while (barrier->count > 0) {
