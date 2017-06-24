@@ -1,0 +1,121 @@
+\documentclass[a4paper,11pt]{article}
+
+\usepackage[english]{babel}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage[colorinlistoftodos]{todonotes}
+\usepackage{enumitem}
+\usepackage{listings}
+\lstset{basicstyle=\footnotesize\ttfamily,breaklines=true}
+\lstset{frame=tb,language=C,numbers=left,showstringspaces=false}
+\renewcommand{\lstlistingname}{Code Block}
+
+\usepackage{geometry}
+\geometry{total={210mm,297mm},
+left=25mm, right=25mm,
+bindingoffset=0mm,
+top=20mm, bottom=20mm}
+
+\usepackage[
+  pdftitle={Homework Assignment 3},
+  pdfauthor={William Jagels},
+  colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue,bookmarks=true,
+bookmarksopenlevel=2]{hyperref}
+
+\usepackage{titlesec}
+\titlelabel{\thetitle.\quad}
+\renewcommand{\thesection}{\Roman{section}}
+
+\def\code#1{\texttt{#1}}
+
+\title{Homework Assignment 3}
+
+\author{William Jagels}
+
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{Q\&A}
+
+\subsection{}
+\begin{enumerate}
+  \item \code{abort()} is supposed to halt the program in the event of an unrecoverable
+    error in the program.
+    By default, \code{SIGABRT} will halt and core dump.
+  \item We want to make sure that the signal handler is run for \code{SIGABRT}.
+    The first one lets the user's handler go to work, and hopefully that should call
+    exit on its own.
+    If that returns, then we have to force the default signal handler, and then use that
+    to fully kill the program.
+  \item The self-kill should always execute the default \code{SIGABRT} handler which
+    is defined to exit the program.
+    If line 27 is executed, something is terribly wrong.
+  \item We don't want any other code being executed because it could rely on the integrity
+    of the thing that just caused \code{abort()} to be called.
+    Allowing other signals to be caught may be dangerous, so we shouldn't allow that to happen.
+\end{enumerate}
+
+\subsection{}
+\begin{enumerate}
+  \item This code spawns one child that spawns another child, and then kills iteslf, leaving
+    the grandchild as an orphan.
+    The orphan will continue with init as its parent as if it was started by init.
+    The parent process can also do whatever it wants, maybe even communicate with the orphan.
+  \item This code is useful if the programmer wants to start a daemon process.
+    When the shell used to call the initial process exits, the grandchild process won't exit.
+    The grandchild can run some sort of a server or service for the rest of the machine without
+    the risk of being killed by a shell exiting.
+\end{enumerate}
+
+\subsection{}
+\begin{enumerate}
+  \item
+    Code without condition variable.
+    \begin{lstlisting}
+struct msg *workq;
+pthread_mutex_t qlock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t olock = PTHREAD_MUTEX_INITIALIZER;
+
+void process_message() {
+  struct msg *mp;
+
+  for (;;) {
+    pthread_mutex_lock(&qlock);
+    while (workq == NULL) {
+      pthread_mutex_unlock(&qlock);
+      sleep(1);
+      pthread_mutex_lock(&qlock);
+    }
+    mp = workq;
+  }
+}
+
+void enqueue_msg(struct msg *mp) {
+  pthread_mutex_lock(&qlock);
+  mp->m_next = workq;
+  workq = mp;
+  pthread_mutex_unlock(&qlock);
+}
+\end{lstlisting}
+\item The condition variable is better in this situation because it prevents needless unlocking
+  and locking of the mutex.
+  When there's nothing in workq, there will be a lot of useless work done on the cpu.
+
+\item When \code{pthread\_cond\_wait()} is called, the mutex is unlocked and then the consumer
+  thread blocks on the condition variable, allowing the producer thread to do work.
+
+\item Sending the signal before the unlock is fine, the wait also waits for the
+  lock to be unlocked by the other producer thread.
+\end{enumerate}
+
+\subsection{}
+Using \code{pthread\_mutex\_trylock}, in an \code{if} block will make this work.
+Since trylock will only succeed for one thread, there will only ever be one thread
+that enters that branch, unless the mutex is unlocked.
+
+\end{document}

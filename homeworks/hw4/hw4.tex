@@ -1,0 +1,143 @@
+\documentclass[a4paper,11pt]{article}
+
+\usepackage[english]{babel}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage[colorinlistoftodos]{todonotes}
+\usepackage{enumitem}
+\usepackage{listings}
+\lstset{basicstyle=\footnotesize\ttfamily,breaklines=true}
+\lstset{frame=tb,language=C,numbers=left,showstringspaces=false}
+\renewcommand{\lstlistingname}{Code Block}
+
+\usepackage{geometry}
+\geometry{total={210mm,297mm},
+left=25mm, right=25mm,
+bindingoffset=0mm,
+top=20mm, bottom=20mm}
+
+\usepackage[
+  pdftitle={Homework Assignment 4},
+  pdfauthor={William Jagels},
+  colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue,bookmarks=true,
+bookmarksopenlevel=2]{hyperref}
+
+\usepackage{titlesec}
+\titlelabel{\thetitle.\quad}
+% \renewcommand{\thesection}{\Roman{section}}
+
+\def\code#1{\texttt{#1}}
+
+\title{Homework Assignment 4}
+
+\author{William Jagels}
+
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{}
+\subsection{}
+The server will not get the messages when the malicious process starts removing them
+from the queue.
+The client will think that its messages have been read, and perhaps expect a reply, but
+it will never get one because the malicious process intercepted the messages.
+This can throw the system into deadlock.
+\subsection{}
+The ipc\_perm struct must have the permissions bits set to allow the uid/gid of the
+malicious process to read.
+For POSIX, the message queue can be set with \code{chown()} and \code{chmod()}.
+The permissions system works the same way as it does on regular files, as message queues
+in POSIX are just mountable virtual filesystems.
+
+\section{}
+\begin{enumerate}
+  \item Both can be opened by multiple processes at once
+  \item FIFOs require both ends to be opened before it can be used
+  \item Message queues have no path, just an identifier.
+    A FIFO can exist anywhere on the filesystem, meaning it can be placed in the folder
+    that the program is run from, eliminating issues with name conflicts.
+\end{enumerate}
+
+\section{}
+\begin{enumerate}
+  \item A binary semaphore can be manipulated by other processes while a mutex can
+    only be touched by the threads of a single process.
+  \item Using a named seamphore, the programmer can persist state beyond the lifetime
+    of the process, while mutexes are always in memory.
+  \item A binary semaphore can be safely used to make a program wait for a signal to
+    release it, a mutex won't because the same process can't double-lock a mutex.
+\end{enumerate}
+
+\section{}
+\subsection{}
+This is a producer-consumer example program where messages from \code{stdin} are passed
+via a shm segment to another program which dumps them onto \code{stdout}
+\subsection{}
+The semaphore is reserved before it is destroyed in order to prevent a double-destruction
+of that semaphore.
+This also protects the shared memory from a double-destruction attempt.
+\subsection{}
+No, because that would break safety.
+\code{shmp->cnt} will not be protected from other threads/processes when run.
+By reserving our semaphore before doing anything with shmp, we prevent the result
+from being changed by external forces.
+
+\section{}
+\subsection{}
+This opens a message queue and reads messages from it ad infinitum.
+It sends all the received messages to \code{threadFunc()}, which prints the sizes of
+the received messages.
+\subsection{}
+When a message is sent to a process via the notification, the notification
+function is removed, so we need to re-register to continue getting messages
+from the message queue.
+\subsection{}
+No, because that would make this function MT-Unsafe.
+Also, we would need to know the \code{mq\_msgsize} at compile time.
+
+\section{}
+\subsection{}
+Without the call to \code{listen()}, the server will refuse incoming connections.
+
+\subsection{}
+Without the call to \code{bind()}, the server will be listening on an unbound port,
+resulting in the default socket handler to be used, most likely refusing the connection.
+
+\section{}
+\subsection{To ensure proper cleanup of a thread, it must be either detached or joined with by its
+parent thread.}
+A thread can specify a cleanup handler with \code{pthread\_cleanup\_push()} which is arguably
+safer than trying to do it by hand.
+By pushing a cleanup handler, the thread does not have to be detached or joined to ensure
+proper cleanup, it can be canceled at any cancellation point safely.
+
+\subsection{Any thread in a process can cancel another thread as long as the thread being canceled
+has its cancel state set to \code{PTHREAD\_CANCEL\_ENABLE}.}
+This is true, as long as the thread hits a cancellation point or has the
+\code{PTHREAD\_CANCEL\_ASYNCHRONOUS} canceltype.
+
+\subsection{Unnamed POSIX semaphores can be used for synchronizing between both multiple
+threads and multiple processes.}
+No, you need to use a named POSIX semaphore if you want to synchronize across different
+processes, and the permissions also need to be set correctly if it's a different
+user's process.
+
+\subsection{The \code{connect()} function is only used with TCP connections.}
+No, it can be used with any protocol that implement \code{SOCK\_STREAM}.
+\code{connect()} is only for protocols that require a connection, unlike a datagram
+protocol such as UDP.
+
+\subsection{If two processes attach a shared-memory segment, then that shared-memory segment
+can appear at different addresses in each process’s virtual address-space.}
+This is true, it can also be at the same location because the first available location
+in the virtual address space will quite often be the same.
+The programmer can also ask for a specific location within the address space for the
+buffer to be placed at.
+It shouldn't matter where you put the buffer, because with offsets, you can access anywhere.
+
+\end{document}
